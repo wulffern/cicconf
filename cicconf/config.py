@@ -24,7 +24,7 @@ class Repo(cicconf.Command):
             return True
         return False
 
-    def clone(self):
+    def clone(self,useHttp=False):
         if(self.exists()):
             self.comment(f"{self.name} already exists")
             return
@@ -33,8 +33,14 @@ class Repo(cicconf.Command):
             self.error(f"No remote found for {self.name}")
             return
 
-        self.comment(f"Cloning {self.remote} into {self.name}")
-        r = git.Repo.clone_from(self.remote, self.name)
+        src = self.remote
+        if(useHttp and "git@" in src):
+            src = src.replace(":","/")
+            src = src.replace("git@","https://")
+
+
+        self.comment(f"Cloning {src} into {self.name}")
+        r = git.Repo.clone_from(src, self.name)
 
 
 
@@ -61,6 +67,6 @@ class Config(cicconf.Command):
 
         return True
 
-    def clone(self):
+    def clone(self,useHttps):
         for name,c in self.children.items():
-            c.clone()
+            c.clone(useHttp=useHttps)
