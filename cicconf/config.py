@@ -48,11 +48,14 @@ class Repo(cicconf.Command):
 
 
 
+
+
 class Config(cicconf.Command):
     def __init__(self,filename):
         super().__init__()
         self.filename = filename
         self.children = dict()
+        self.options = dict()
 
     def read(self):
 
@@ -74,3 +77,28 @@ class Config(cicconf.Command):
     def clone(self,useHttps):
         for name,c in self.children.items():
             c.clone(useHttp=useHttps)
+
+    def newIp(self,name):
+        #- Check for errors
+        error = False
+        if("project" not in self.options):
+            self.error(f"project option not defined in {self.filename}")
+            error = True
+        if("technology" not in self.options):
+            self.error(f"technology option not defined in {self.filename}")
+            error = True
+
+        if("template" not in self.options):
+            self.error(f"template option not defined in {self.filename}")
+            error = True
+        if(not error and "ip" not in self.options["template"]["ip"]):
+            self.error(f"no 'ip' option defined for options->template in {self.filename}")
+            error = True
+        if(error):
+            return
+
+        #- Run template
+        ip = self.options["project"] + "_" + name + "_" + self.options["technology"]
+        iptemplate = self.options["template"]["ip"]
+        cmd = cicconf.CmdIp(ip.upper(),iptemplate)
+        cmd.run()

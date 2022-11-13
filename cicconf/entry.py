@@ -18,6 +18,20 @@ def clone(config,https):
         c.clone(useHttps=https)
         pass
 
+@cli.command()
+@click.option("--config",default="config.yaml",help="Configuration file")
+@click.argument("name")
+def newip(config,name):
+    """Create a new IP with name <project>_<name>_<technology>
+    The <project> and <technology> is fetched from the config file.
+
+    The name should be short and must be unique (for example, bias, aic01 or similar).
+    """
+
+    c = cicconf.Config(config)
+    if(c.read()):
+        c.newIp(name)
+
 
 if __name__ == "__main__":
     cli()
