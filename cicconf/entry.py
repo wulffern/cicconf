@@ -33,5 +33,25 @@ def newip(config,name):
         c.newIp(name)
 
 
+@cli.command()
+@click.option("--config",default="config.yaml",help="Configuration file")
+def status(config):
+    """
+    Report the status of each of the configured IPs
+    """
+    c = cicconf.Config(config)
+    if(c.read()):
+        c.status()
+
+@cli.command()
+@click.option("--config",default="config.yaml",help="Configuration file")
+def update(config):
+    """
+    Update all ips to correct branch according to config file
+    """
+    c = cicconf.Config(config)
+    if(c.read()):
+        c.update()
+
 if __name__ == "__main__":
     cli()

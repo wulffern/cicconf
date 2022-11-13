@@ -46,8 +46,39 @@ class Repo(cicconf.Command):
             self.comment(f"%-25s: Checkout {self.revision}" % (self.name))
             r.git.checkout(self.revision)
 
+    def status(self):
+        repo = git.Repo(self.name)
+        status = repo.git.status(short=True)
 
+        if(repo.head.is_detached):
+            branch = ""
+            sha = repo.head.commit.hexsha
+            for t in repo.tags:
+                if(t.object.hexsha == sha):
+                    branch = t.name
 
+            if(branch == ""):
+                branch = "unknown"
+        else:
+            try:
+                branch = repo.active_branch
+            except Exception as e:
+                self.error(" Could not find branch name of {self.name}")
+                return
+
+        clean = "clean"
+        isClean = True
+        if(status != ""):
+            isClean = False
+            clean = "changed"
+
+        self.comment(f"%-25s%-15s%-15s" % (self.name,branch,clean))
+        if(not isClean):
+            print(status)
+
+    def update(self):
+        repo = git.Repo(self.name)
+        repo.git.checkout(self.revision)
 
 
 class Config(cicconf.Command):
@@ -102,3 +133,14 @@ class Config(cicconf.Command):
         iptemplate = self.options["template"]["ip"]
         cmd = cicconf.CmdIp(ip.upper(),iptemplate)
         cmd.run()
+
+    def status(self):
+        self.comment("%-25s%-15s%-15s" %("Name","Revision","Status"))
+        self.comment("-"*55)
+        for name,c in self.children.items():
+            c.status()
+
+    def update(self):
+
+        for name,c in self.children.items():
+            c.update()
