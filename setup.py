@@ -17,7 +17,7 @@ setuptools.setup(
     entry_points = {'console_scripts': [
         'cicconf = cicconf.entry:cli',
     ]},
-    install_requires = 'matplotlib numpy '.split(),
+    install_requires = 'matplotlib numpy GitPython'.split(),
     classifiers = [
         'Development Status :: 1 - Alpha',
         'Intended Audience :: Developers',
