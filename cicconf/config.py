@@ -39,8 +39,12 @@ class Repo(cicconf.Command):
             src = src.replace("git@","https://")
 
 
-        self.comment(f"Cloning {src} into {self.name}")
+        self.comment(f"%-25s: Cloning {src}" % (self.name))
         r = git.Repo.clone_from(src, self.name)
+
+        if(self.revision):
+            self.comment(f"%-25s: Checkout {self.revision}" % (self.name))
+            r.git.checkout(self.revision)
 
 
 
