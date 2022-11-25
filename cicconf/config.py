@@ -12,6 +12,7 @@ class Repo(cicconf.Command):
         self.name = name
         self.remote = None
         self.revision = None
+        self.on_clone = None
 
         if("revision" in obj):
             self.revision = obj["revision"]
