@@ -19,6 +19,9 @@ class Repo(cicconf.Command):
         if("remote" in obj):
             self.remote = obj["remote"]
 
+        if("on_clone" in obj):
+            self.on_clone = obj["on_clone"]
+
     def exists(self):
         if(os.path.exists(self.name)):
             return True
@@ -46,10 +49,21 @@ class Repo(cicconf.Command):
             self.comment(f"%-25s: Checkout {self.revision}" % (self.name))
             r.git.checkout(self.revision)
 
-    def status(self):
-        repo = git.Repo(self.name)
-        status = repo.git.status(short=True)
+        if(self.on_clone):
+            self.doCmd(f"cd {self.name};{self.on_clone}")
 
+    def status(self):
+
+        if(not self.exists()):
+            self.warning(f"%-25s%-15s%-15s" % (self.name,"","uncloned"))
+            return
+
+
+        repo = git.Repo(self.name)
+
+        status = ""
+
+        #- Check branch
         if(repo.head.is_detached):
             branch = ""
             sha = repo.head.commit.hexsha
@@ -66,19 +80,59 @@ class Repo(cicconf.Command):
                 self.error(" Could not find branch name of {self.name}")
                 return
 
-        clean = "clean"
-        isClean = True
-        if(status != ""):
-            isClean = False
-            clean = "changed"
 
-        self.comment(f"%-25s%-15s%-15s" % (self.name,branch,clean))
-        if(not isClean):
-            print(status)
+        if(str(branch) != self.revision):
+            status += f"{branch} "
+
+
+        #- Check ahead/behind
+        commits_behind = repo.iter_commits(f"{branch}..origin/{branch}")
+        commits_ahead = repo.iter_commits(f"origin/{branch}..{branch}")
+        behind = sum(1 for c in commits_behind)
+        ahead = sum(1 for c in commits_ahead)
+        if(behind > 0):
+            status += f"O-{behind} "
+        if(ahead > 0):
+            status += f"O+{ahead} "
+
+
+        #- Check files
+        diff = repo.index.diff(None)
+        N = sum(1 for c in diff)
+        if(N > 0):
+            status += f"M+{N}"
+
+        untracked =repo.untracked_files
+        UN = sum(1 for c in untracked)
+        if(UN > 0):
+            status += f"U+{UN}"
+
+
+        self.comment(f"%-25s%-15s%-15s" % (self.name,self.revision,status))
+
+
+        if(self.verbose):
+            self.indent +=1
+            for d in untracked:
+                self.warning(self.name + os.path.sep + d)
+            for d in diff:
+                self.warning(self.name + os.path.sep + d.a_path + " "  + d.change_type)
+            self.indent -=1
+
+        #if(not isClean):
+        #    print(status)
 
     def update(self):
+
+        if(not self.exists()):
+            self.warning(f"%-25s%-15s%-15s" % (self.name,"","uncloned"))
+            self.clone()
+            return
+
+        self.warning(f"%-25s%-15s%-15s" % (self.name,"","updating"))
         repo = git.Repo(self.name)
         repo.git.checkout(self.revision)
+        repo.git.pull()
 
 
 class Config(cicconf.Command):

@@ -51,6 +51,7 @@ class Command:
     def __init__(self):
         self.indentstr = "|-"
         self.indent = 0
+        self.verbose = 1
 
     def getColor(self,color):
         if(color in colors.fg):
