@@ -5,20 +5,19 @@ Custom IC Creator Configuration tool
 When you make an IC it will be a combination of multiple IPs. Each IP usually have
 different analog designer, but often the IPs depend on each other.
 
-For each IP one must have version control, which is handled nicely by git as
+For each IP one must have version control, and revision control (tags), which is handled nicely by git as
 long as the files are not too large (or binary)
 
-For the IC, though, one must have the ability to lock the version of an IP, but
+For the IC, though, one must have the ability to use a specific revision (tag) of an IP, but
 allow the IP development to continue. As such, it's not feasible to have
-everything in one repo. 
+everything in one repo.
 
-We need a configuration tool, one that can pick the IPs, and get the right
-versions from git. 
-
+I needed a configuration tool, one that can pick the IPs, and get the right
+versions from git repositories.
 
 *Disclamer:* I have not spent much time searching whether there is a tool that
 fits my purpose, but it was quick to write, so I get something that matches
-exactly what I want
+exactly what I want. One alternative is git submodules, but I find that more of a hassle.
 
 
 Getting Started
@@ -34,7 +33,8 @@ Idea
 
 cicconf will search the current directory for a `ciconf.yaml` file. An example
 
-cicconf.yaml::
+cicconf.yaml
+::
   options:
     template:
         ip: tech_sky130B/cicconf/ip_template.yaml
@@ -74,7 +74,6 @@ Then run::
 Usage
 =====
 For latest command, check `cicconf --help`
-
 ::
    Usage: cicconf [OPTIONS] COMMAND [ARGS]...
 
