@@ -115,7 +115,7 @@ class Repo(cicconf.Command):
         if(self.verbose):
             self.indent +=1
             for d in untracked:
-                self.warning(self.name + os.path.sep + d)
+                self.warning(self.name + os.path.sep + d + " ?" )
             for d in diff:
                 self.warning(self.name + os.path.sep + d.a_path + " "  + d.change_type)
             self.indent -=1
