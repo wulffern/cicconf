@@ -64,7 +64,7 @@ cicconf.yaml
 
 The option section has some custom fields to tell cicconf how new IPs should be
 named. The ip_template contains the instructions for creating an IP, for example
- `ip_template.yaml <https://github.com/wulffern/tech_sky130B/blob/main/cicconf/ip_template.yaml>`_
+`ip_template.yaml <https://github.com/wulffern/tech_sky130B/blob/main/cicconf/ip_template.yaml>`_
 
 The rest follows a simple pattern
 
