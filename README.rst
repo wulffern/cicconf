@@ -54,9 +54,6 @@ cicconf.yaml
   cpdk:
     remote: git@github.com:wulffern/cpdk.git
     revision: main
-  tech_sky130A:
-    remote: git@github.com:wulffern/tech_sky130A.git
-    revision: main
   tech_sky130B:
     remote: git@github.com:wulffern/tech_sky130B.git
     revision: main
