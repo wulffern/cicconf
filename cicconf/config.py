@@ -28,7 +28,7 @@ class Repo(cicconf.Command):
             return True
         return False
 
-    def clone(self,useHttp=False):
+    def clone(self,useHttp=False,doOnClone=True ):
         if(self.exists()):
             self.comment(f"{self.name} already exists")
             return
@@ -50,7 +50,7 @@ class Repo(cicconf.Command):
             self.comment(f"%-25s: Checkout {self.revision}" % (self.name))
             r.git.checkout(self.revision)
 
-        if(self.on_clone):
+        if(self.on_clone and doOnClone):
             self.doCmd(f"cd {self.name};{self.on_clone}")
 
     def status(self):
@@ -163,9 +163,9 @@ class Config(cicconf.Command):
 
         return True
 
-    def clone(self,useHttps):
+    def clone(self,useHttps,doOnClone=True):
         for name,c in self.children.items():
-            c.clone(useHttp=useHttps)
+            c.clone(useHttp=useHttps,doOnClone=doOnClone)
 
     def newIp(self,name):
         #- Check for errors

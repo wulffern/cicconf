@@ -14,13 +14,14 @@ def cli(ctx,config):
 
 @cli.command()
 @click.option("--https",is_flag=True,default=False,help="Use https for clone (override for git@)")
+@click.option("--onclone/--no-onclone",is_flag=True,default=True,help="Don't run on_clone event")
 @click.pass_context
-def clone(ctx,https):
+def clone(ctx,https,onclone):
     """Clone repositories in config file"""
     c = ctx.obj["c"]
 
     if(c.read()):
-        c.clone(useHttps=https)
+        c.clone(useHttps=https,doOnClone=onclone)
         pass
 
 @cli.command()
