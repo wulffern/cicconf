@@ -132,9 +132,11 @@ class Repo(cicconf.Command):
 
         self.warning(f"%-25s%-15s%-15s" % (self.name,"","updating"))
         repo = git.Repo(self.name)
+        repo.git.fetch()
         repo.git.checkout(self.revision)
         try:
             repo.git.pull()
+            
         except Exception as e:
             print(self.name + " is detached at " + self.revision + ", no need to pull")
 
