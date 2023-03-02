@@ -5,10 +5,11 @@ import cicconf
 
 @click.group()
 @click.option("--config",default="config.yaml",help="Configuration file")
+@click.option("--verbose/--no-verbose",default=False,help="Turn on extra output")
 @click.pass_context
-def cli(ctx,config):
+def cli(ctx,config,verbose):
     ctx.ensure_object(dict)
-    c = cicconf.Config(config)
+    c = cicconf.Config(config,verbose)
     ctx.obj["c"] = c
     pass
 

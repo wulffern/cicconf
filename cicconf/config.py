@@ -7,12 +7,13 @@ import yaml
 
 class Repo(cicconf.Command):
 
-    def __init__(self,name,obj):
-        super().__init__()
+    def __init__(self,name,obj,verbose=False):
+        super().__init__(verbose)
         self.name = name
         self.remote = None
         self.revision = None
         self.on_clone = None
+
 
         if("revision" in obj):
             self.revision = obj["revision"]
@@ -142,8 +143,8 @@ class Repo(cicconf.Command):
 
 
 class Config(cicconf.Command):
-    def __init__(self,filename):
-        super().__init__()
+    def __init__(self,filename,verbose=False):
+        super().__init__(verbose)
         self.filename = filename
         self.children = dict()
         self.options = dict()
@@ -161,7 +162,7 @@ class Config(cicconf.Command):
             if(k == "options"):
                 self.options = self.config[k]
             else:
-                self.children[k] = Repo(k,self.config[k])
+                self.children[k] = Repo(k,self.config[k],self.verbose)
 
         return True
 
