@@ -102,12 +102,12 @@ class Repo(cicconf.Command):
         diff = repo.index.diff(None)
         N = sum(1 for c in diff)
         if(N > 0):
-            status += f"M+{N}"
+            status += f"M+{N} "
 
         untracked =repo.untracked_files
         UN = sum(1 for c in untracked)
         if(UN > 0):
-            status += f"U+{UN}"
+            status += f"U+{UN} "
 
 
         self.comment(f"%-25s%-15s%-15s" % (self.name,self.revision,status))
@@ -196,6 +196,9 @@ class Config(cicconf.Command):
         cmd.run()
 
     def status(self):
+        self.comment("O = Commits behind/ahead branch","yellow")
+        self.comment("M = Modified files","yellow")
+        self.comment("U = Untracked files","yellow")
         self.comment("%-25s%-15s%-15s" %("Name","Revision","Status"))
         self.comment("-"*55)
         for name,c in self.children.items():
