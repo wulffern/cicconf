@@ -88,14 +88,15 @@ class Repo(cicconf.Command):
 
 
         #- Check ahead/behind
-        commits_behind = repo.iter_commits(f"{branch}..origin/{branch}")
-        commits_ahead = repo.iter_commits(f"origin/{branch}..{branch}")
-        behind = sum(1 for c in commits_behind)
-        ahead = sum(1 for c in commits_ahead)
-        if(behind > 0):
-            status += f"O-{behind} "
-        if(ahead > 0):
-            status += f"O+{ahead} "
+        if(not repo.head.is_detached):
+            commits_behind = repo.iter_commits(f"{branch}..origin/{branch}")
+            commits_ahead = repo.iter_commits(f"origin/{branch}..{branch}")
+            behind = sum(1 for c in commits_behind)
+            ahead = sum(1 for c in commits_ahead)
+            if(behind > 0):
+                status += f"O-{behind} "
+            if(ahead > 0):
+                status += f"O+{ahead} "
 
 
         #- Check files
