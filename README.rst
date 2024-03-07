@@ -41,8 +41,8 @@ Clone the repository, and do
 Idea
 ====
 
-cicconf will search the current directory for a *ciconf.yaml* file. An example
-cicconf.yaml
+cicconf will search the current directory for a *config.yaml* file. An example
+config.yaml
 
 .. code-block:: yaml
 
