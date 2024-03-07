@@ -75,7 +75,7 @@ The rest follows a simple pattern
 Running
 =======
 
-Construct a cicconf.yaml of your desire (see
+Construct a config.yaml of your desire (see
 `config.yaml <https://github.com/wulffern/aicex/blob/main/ip/config.yaml>`_ for a
 more extensive example). Then run
 
