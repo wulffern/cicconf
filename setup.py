@@ -11,7 +11,7 @@ with open("README.rst", "r") as fh:
 
 setuptools.setup(
     name="cicconf",
-    version="0.1.2",
+    version="0.1.6",
     author="Carsten Wulff",
     author_email="carsten@wulff.no",
     description="Configuration and Revision tool ",
@@ -23,7 +23,7 @@ setuptools.setup(
     entry_points = {'console_scripts': [
         'cicconf = cicconf.entry:cli',
     ]},
-    install_requires = 'matplotlib click numpy GitPython'.split(),
+    install_requires = 'matplotlib click GitPython'.split(),
     classifiers = [
         'Development Status :: 1 - Alpha',
         'Intended Audience :: Developers',
