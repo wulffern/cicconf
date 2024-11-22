@@ -11,7 +11,7 @@ with open("README.rst", "r") as fh:
 
 setuptools.setup(
     name="cicconf",
-    version="0.1.6",
+    version="0.1.7",
     author="Carsten Wulff",
     author_email="carsten@wulff.no",
     description="Configuration and Revision tool ",

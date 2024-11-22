@@ -15,6 +15,7 @@ class Repo(cicconf.Command):
         self.on_clone = None
 
 
+
         if("revision" in obj):
             self.revision = obj["revision"]
 
@@ -144,11 +145,23 @@ class Repo(cicconf.Command):
 
 
 class Config(cicconf.Command):
-    def __init__(self,filename,verbose=False):
+    def __init__(self,filename,verbose=False,rundir="./"):
         super().__init__(verbose)
-        self.filename = filename
         self.children = dict()
         self.options = dict()
+        self.rundir = rundir
+        self.cwd = os.getcwd()
+
+        if(filename.startswith("/")):
+            pass
+        else:
+            filename = self.cwd + os.path.sep + filename
+
+        self.filename = filename
+
+        #- Change to rundir
+        os.chdir(self.rundir)
+
 
     def read(self):
 

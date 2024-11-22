@@ -6,10 +6,11 @@ import cicconf
 @click.group()
 @click.option("--config",default="config.yaml",help="Configuration file")
 @click.option("--verbose/--no-verbose",default=False,help="Turn on extra output")
+@click.option("--rundir",default="./",help="Where to run cicconf")
 @click.pass_context
-def cli(ctx,config,verbose):
+def cli(ctx,config,verbose,rundir):
     ctx.ensure_object(dict)
-    c = cicconf.Config(config,verbose)
+    c = cicconf.Config(config,verbose,rundir)
     ctx.obj["c"] = c
     pass
 
