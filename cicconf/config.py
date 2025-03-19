@@ -4,6 +4,7 @@ import git
 import cicconf
 import os
 import yaml
+import re
 
 class Repo(cicconf.Command):
 
@@ -90,6 +91,7 @@ class Repo(cicconf.Command):
 
         #- Check ahead/behind
         if(not repo.head.is_detached):
+
             commits_behind = repo.iter_commits(f"{branch}..origin/{branch}")
             commits_ahead = repo.iter_commits(f"origin/{branch}..{branch}")
             behind = sum(1 for c in commits_behind)
@@ -218,7 +220,8 @@ class Config(cicconf.Command):
         for name,c in self.children.items():
             c.status()
 
-    def update(self):
+    def update(self,regex):
 
         for name,c in self.children.items():
-            c.update()
+            if(re.search(regex,name)):
+                c.update()

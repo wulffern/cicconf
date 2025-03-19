@@ -53,13 +53,14 @@ def status(ctx):
 
 @cli.command()
 @click.pass_context
-def update(ctx):
+@click.option("--regex",default=".*",help="Regex pattern for folders to update")
+def update(ctx,regex):
     """
-    Update all ips to correct branch according to config file
+    Update IPs to correct branch according to config file
     """
     c = ctx.obj["c"]
     if(c.read()):
-        c.update()
+        c.update(regex)
 
 if __name__ == "__main__":
     cli(obj={})
