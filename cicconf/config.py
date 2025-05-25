@@ -109,9 +109,9 @@ class Repo(cicconf.Command):
             status += f"M+{N} "
 
         untracked =repo.untracked_files
-        UN = sum(1 for c in untracked)
-        if(UN > 0):
-            status += f"U+{UN} "
+        #UN = sum(1 for c in untracked)
+        #if(UN > 0):
+        #    status += f"U+{UN} "
 
 
         self.comment(f"%-25s%-15s%-15s" % (self.name,self.revision,status))
