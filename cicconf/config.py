@@ -196,10 +196,12 @@ class Config(cicconf.Command):
             self.error(f"technology option not defined in {self.filename}")
             error = True
 
+
+        print(self.options)
         if("template" not in self.options):
             self.error(f"template option not defined in {self.filename}")
             error = True
-        if(not error and "ip" not in self.options["template"]["ip"]):
+        if(not error and "ip" not in self.options["template"]):
             self.error(f"no 'ip' option defined for options->template in {self.filename}")
             error = True
         if(error):
