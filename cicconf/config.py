@@ -197,7 +197,7 @@ class Config(cicconf.Command):
             error = True
 
 
-        print(self.options)
+
         if("template" not in self.options):
             self.error(f"template option not defined in {self.filename}")
             error = True
