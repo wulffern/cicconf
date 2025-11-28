@@ -71,5 +71,16 @@ def update(ctx,regex):
     if(c.read()):
         c.update(regex)
 
+@cli.command()
+@click.pass_context
+@click.option("--regex",default=".*",help="Regex pattern for folders to update")
+def pull(ctx,regex):
+    """
+    Pull latest data
+    """
+    c = ctx.obj["c"]
+    if(c.read()):
+        c.pull(regex)
+
 if __name__ == "__main__":
     cli(obj={})

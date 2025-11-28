@@ -145,6 +145,21 @@ class Repo(cicconf.Command):
         except Exception as e:
             print(self.name + " is detached at " + self.revision + ", no need to pull")
 
+    def pull(self):
+
+        if(not self.exists()):
+            self.warning(f"%-25s%-15s%-15s" % (self.name,"","uncloned"))
+            self.clone()
+            return
+
+        self.warning(f"%-25s%-15s%-15s" % (self.name,"","pulling"))
+        repo = git.Repo(self.name)
+        try:
+            repo.git.pull()
+        except Exception as e:
+            print(e)
+            #print(self.name + " is detached at " + self.revision + ", no need to pull")
+
 
 class Config(cicconf.Command):
     def __init__(self,filename,verbose=False,rundir="./"):
@@ -227,3 +242,8 @@ class Config(cicconf.Command):
         for name,c in self.children.items():
             if(re.search(regex,name)):
                 c.update()
+    def pull(self,regex):
+
+        for name,c in self.children.items():
+            if(re.search(regex,name)):
+                c.pull()
