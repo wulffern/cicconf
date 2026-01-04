@@ -59,7 +59,7 @@ class CmdIp(cs.Command):
 
       Before the file is read as YAML it will replace ${NAME} type variables in the following order.\n
        - ${IP} = IP \n
-       - ${CELL} = re.sub("_[^\_]+$","",IP) \n
+       - ${CELL} = re.sub(r"_[^\_]+$","",IP) \n
        - Environment variables, i.e ${USER} \n
 
     """
@@ -78,7 +78,7 @@ class CmdIp(cs.Command):
 
         useCellName = False
         if(not self.cell):
-            self.cell = re.sub("_[^\_]+$","",self.ip)
+            self.cell = re.sub(r"_[^\_]+$","",self.ip)
         else:
             useCellName = True
 
