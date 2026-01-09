@@ -11,7 +11,8 @@ authors = [
 dependencies = [
   "GitPython",
   "click",
-  "matplotlib"
+  "matplotlib",
+  "yaml"
 ]
 license = { text= "MIT" }
 description = "Configuration and Revision tool"
