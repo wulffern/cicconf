@@ -12,7 +12,7 @@ dependencies = [
   "GitPython",
   "click",
   "matplotlib",
-  "yaml"
+  "PyYAML"
 ]
 license = { text= "MIT" }
 description = "Configuration and Revision tool"
