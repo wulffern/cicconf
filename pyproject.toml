@@ -12,17 +12,23 @@ dependencies = [
   "GitPython",
   "click",
   "matplotlib",
-  "PyYAML"
+  "PyYAML",
+  "rich"
 ]
 license = { text= "MIT" }
 description = "Configuration and Revision tool"
-readme = "README.md"
+readme = "README.rst"
 requires-python = ">=3.8"
 classifiers = [
     "Programming Language :: Python :: 3",
     'Intended Audience :: Science/Research',
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest"
 ]
 
 [project.scripts]

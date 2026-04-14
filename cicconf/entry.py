@@ -17,13 +17,14 @@ def cli(ctx,config,verbose,rundir):
 @cli.command()
 @click.option("--https",is_flag=True,default=False,help="Use https for clone (override for git@)")
 @click.option("--onclone/--no-onclone",is_flag=True,default=True,help="Don't run on_clone event")
+@click.option("--jobs",default=4,show_default=True,help="Number of repositories to process in parallel")
 @click.pass_context
-def clone(ctx,https,onclone):
+def clone(ctx,https,onclone,jobs):
     """Clone repositories in config file"""
     c = ctx.obj["c"]
 
     if(c.read()):
-        c.clone(useHttps=https,doOnClone=onclone)
+        c.clone(useHttps=https,doOnClone=onclone,jobs=jobs)
         pass
 
 @cli.command()
@@ -51,36 +52,39 @@ def newip(ctx,name,project,technology,ip):
 
 
 @cli.command()
+@click.option("--fast/--no-fast",default=True,help="Skip ahead/behind commit counting for faster status")
 @click.pass_context
-def status(ctx):
+def status(ctx,fast):
     """
     Report the status of each of the configured IPs
     """
     c = ctx.obj["c"]
     if(c.read()):
-        c.status()
+        c.status(fast=fast)
 
 @cli.command()
 @click.pass_context
 @click.option("--regex",default=".*",help="Regex pattern for folders to update")
-def update(ctx,regex):
+@click.option("--jobs",default=4,show_default=True,help="Number of repositories to process in parallel")
+def update(ctx,regex,jobs):
     """
     Update IPs to correct branch according to config file
     """
     c = ctx.obj["c"]
     if(c.read()):
-        c.update(regex)
+        c.update(regex,jobs=jobs)
 
 @cli.command()
 @click.pass_context
 @click.option("--regex",default=".*",help="Regex pattern for folders to update")
-def pull(ctx,regex):
+@click.option("--jobs",default=4,show_default=True,help="Number of repositories to process in parallel")
+def pull(ctx,regex,jobs):
     """
     Pull latest data
     """
     c = ctx.obj["c"]
     if(c.read()):
-        c.pull(regex)
+        c.pull(regex,jobs=jobs)
 
 if __name__ == "__main__":
     cli(obj={})

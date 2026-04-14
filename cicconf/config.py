@@ -1,10 +1,36 @@
 #!/usr/bin/env python3
 
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import dataclass, field
 import git
 import cicconf
 import os
 import yaml
 import re
+
+from rich.console import Console
+from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
+from rich.table import Table
+
+
+@dataclass
+class RepoStatus:
+    name: str
+    revision: str = ""
+    current: str = ""
+    status: str = ""
+    state: str = "ok"
+    details: list = field(default_factory=list)
+
+
+@dataclass
+class RepoAction:
+    name: str
+    revision: str = ""
+    result: str = ""
+    detail: str = ""
+    state: str = "ok"
+
 
 class Repo(cicconf.Command):
 
@@ -14,8 +40,6 @@ class Repo(cicconf.Command):
         self.remote = None
         self.revision = None
         self.on_clone = None
-
-
 
         if("revision" in obj):
             self.revision = obj["revision"]
@@ -31,134 +55,238 @@ class Repo(cicconf.Command):
             return True
         return False
 
-    def clone(self,useHttp=False,doOnClone=True ):
+    def _open_repo(self):
+        return git.Repo(self.name)
+
+    def clone_action(self,useHttp=False,doOnClone=True):
+        row = RepoAction(name=self.name,revision=self.revision or "")
+
         if(self.exists()):
-            self.comment(f"{self.name} already exists")
-            return
+            row.result = "skipped"
+            row.detail = "already exists"
+            row.state = "warning"
+            return row
 
         if(not self.remote):
-            self.error(f"No remote found for {self.name}")
-            return
+            row.result = "failed"
+            row.detail = "no remote configured"
+            row.state = "error"
+            return row
 
         src = self.remote
         if(useHttp and "git@" in src):
             src = src.replace(":","/")
             src = src.replace("git@","https://")
 
+        try:
+            repo = git.Repo.clone_from(src, self.name)
+            if(self.revision):
+                repo.git.checkout(self.revision)
+            if(self.on_clone and doOnClone):
+                self.doCmd(f"cd {self.name};{self.on_clone}")
+            row.result = "cloned"
+            row.detail = src
+        except Exception as e:
+            row.result = "failed"
+            row.detail = str(e)
+            row.state = "error"
 
-        self.comment(f"%-25s: Cloning {src}" % (self.name))
-        r = git.Repo.clone_from(src, self.name)
+        return row
 
-        if(self.revision):
-            self.comment(f"%-25s: Checkout {self.revision}" % (self.name))
-            r.git.checkout(self.revision)
+    def _parse_status_porcelain(self, text):
+        info = {
+            "head": "",
+            "upstream": "",
+            "ahead": 0,
+            "behind": 0,
+            "modified": 0,
+            "untracked": [],
+            "changes": [],
+        }
 
-        if(self.on_clone and doOnClone):
-            self.doCmd(f"cd {self.name};{self.on_clone}")
+        for line in text.splitlines():
+            if(line.startswith("# branch.head ")):
+                info["head"] = line.removeprefix("# branch.head ").strip()
+            elif(line.startswith("# branch.upstream ")):
+                info["upstream"] = line.removeprefix("# branch.upstream ").strip()
+            elif(line.startswith("# branch.ab ")):
+                m = re.search(r"\+(\d+) -(\d+)",line)
+                if(m):
+                    info["ahead"] = int(m.group(1))
+                    info["behind"] = int(m.group(2))
+            elif(line.startswith("? ")):
+                path = line[2:].strip()
+                info["untracked"].append(path)
+            elif(line.startswith("1 ") or line.startswith("2 ") or line.startswith("u ")):
+                info["modified"] += 1
+                parts = line.split()
+                if(parts):
+                    path = parts[-1]
+                    info["changes"].append(path)
+        return info
 
-    def status(self):
+    def collect_status(self,fast=True):
+        row = RepoStatus(name=self.name,revision=self.revision or "")
 
         if(not self.exists()):
-            self.warning(f"%-25s%-15s%-15s" % (self.name,"","uncloned"))
-            return
+            row.state = "uncloned"
+            row.status = "uncloned"
+            return row
 
+        try:
+            repo = self._open_repo()
+        except Exception:
+            row.state = "error"
+            row.status = "invalid git repo"
+            return row
 
-        repo = git.Repo(self.name)
+        try:
+            args = ["--porcelain=2", "--branch"]
+            if(fast):
+                args.append("--untracked-files=no")
+            text = repo.git.status(*args)
+        except Exception as e:
+            row.state = "error"
+            row.status = str(e)
+            return row
 
-        status = ""
+        info = self._parse_status_porcelain(text)
 
-        #- Check branch
-        if(repo.head.is_detached):
-            branch = ""
-            sha = repo.head.commit.hexsha
-            for t in repo.tags:
-                if(t.object.hexsha == sha):
-                    branch = t.name
-
-            if(branch == ""):
-                branch = "unknown"
-        else:
+        branch = info["head"]
+        if(branch == "(detached)"):
             try:
-                branch = repo.active_branch
-            except Exception as e:
-                self.error(" Could not find branch name of {self.name}")
-                return
+                sha = repo.head.commit.hexsha
+                branch = "unknown"
+                for t in repo.tags:
+                    if(t.object.hexsha == sha):
+                        branch = t.name
+                        break
+            except Exception:
+                branch = "unknown"
 
+        row.current = branch
 
-        if(str(branch) != self.revision):
-            status += f"{branch} "
+        status = []
+        if(self.revision and branch != self.revision):
+            status.append(f"rev:{branch}")
 
+        if(not fast):
+            if(info["behind"] > 0):
+                status.append(f"O-{info['behind']}")
+            if(info["ahead"] > 0):
+                status.append(f"O+{info['ahead']}")
 
-        #- Check ahead/behind
-        if(not repo.head.is_detached):
+        if(info["modified"] > 0):
+            status.append(f"M+{info['modified']}")
 
-            commits_behind = repo.iter_commits(f"{branch}..origin/{branch}")
-            commits_ahead = repo.iter_commits(f"origin/{branch}..{branch}")
-            behind = sum(1 for c in commits_behind)
-            ahead = sum(1 for c in commits_ahead)
-            if(behind > 0):
-                status += f"O-{behind} "
-            if(ahead > 0):
-                status += f"O+{ahead} "
+        if(not fast and len(info["untracked"]) > 0):
+            status.append(f"U+{len(info['untracked'])}")
 
-
-        #- Check files
-        diff = repo.index.diff(None)
-        N = sum(1 for c in diff)
-        if(N > 0):
-            status += f"M+{N} "
-
-        untracked =repo.untracked_files
-        #UN = sum(1 for c in untracked)
-        #if(UN > 0):
-        #    status += f"U+{UN} "
-
-
-        self.comment(f"%-25s%-15s%-15s" % (self.name,self.revision,status))
-
+        row.status = " ".join(status)
+        if(row.status == ""):
+            row.status = "clean"
 
         if(self.verbose):
-            self.indent +=1
-            for d in untracked:
-                self.warning(self.name + os.path.sep + d + " ?" )
-            for d in diff:
-                self.warning(self.name + os.path.sep + d.a_path + " "  + d.change_type)
-            self.indent -=1
+            row.details.extend([self.name + "/" + p + " M" for p in info["changes"]])
+            row.details.extend([self.name + "/" + p + " ?" for p in info["untracked"]])
 
-        #if(not isClean):
-        #    print(status)
+        if(row.status != "clean"):
+            row.state = "warning"
 
-    def update(self):
+        return row
 
-        if(not self.exists()):
-            self.warning(f"%-25s%-15s%-15s" % (self.name,"","uncloned"))
-            self.clone()
-            return
-
-        self.warning(f"%-25s%-15s%-15s" % (self.name,"","updating"))
-        repo = git.Repo(self.name)
-        repo.git.fetch()
-        repo.git.checkout(self.revision)
-        try:
-            repo.git.pull()
-            
-        except Exception as e:
-            print(self.name + " is detached at " + self.revision + ", no need to pull")
-
-    def pull(self):
+    def update_action(self):
+        row = RepoAction(name=self.name,revision=self.revision or "")
 
         if(not self.exists()):
-            self.warning(f"%-25s%-15s%-15s" % (self.name,"","uncloned"))
-            self.clone()
-            return
+            return self.clone_action()
 
-        self.warning(f"%-25s%-15s%-15s" % (self.name,"","pulling"))
-        repo = git.Repo(self.name)
         try:
-            repo.git.pull()
+            repo = self._open_repo()
         except Exception as e:
-            print(e)
-            #print(self.name + " is detached at " + self.revision + ", no need to pull")
+            row.result = "failed"
+            row.detail = str(e)
+            row.state = "error"
+            return row
+
+        try:
+            before = repo.head.commit.hexsha
+            repo.git.fetch("--prune", "--quiet")
+            if(self.revision):
+                repo.git.checkout(self.revision)
+            if(repo.head.is_detached):
+                row.result = "skipped"
+                row.detail = f"detached at {self.revision or repo.head.commit.hexsha[:8]}"
+                row.state = "warning"
+                return row
+
+            tracking = repo.active_branch.tracking_branch()
+            if(tracking is None):
+                row.result = "skipped"
+                row.detail = "no upstream"
+                row.state = "warning"
+                return row
+
+            repo.git.fetch(tracking.remote_name, tracking.remote_head, "--quiet")
+            repo.git.merge("--ff-only", tracking.name)
+            after = repo.head.commit.hexsha
+            if(before == after):
+                row.result = "up-to-date"
+                row.detail = str(repo.active_branch)
+            else:
+                row.result = "updated"
+                row.detail = f"{before[:8]} -> {after[:8]}"
+        except Exception as e:
+            row.result = "failed"
+            row.detail = str(e)
+            row.state = "error"
+
+        return row
+
+    def pull_action(self):
+        row = RepoAction(name=self.name,revision=self.revision or "")
+
+        if(not self.exists()):
+            return self.clone_action()
+
+        try:
+            repo = self._open_repo()
+        except Exception as e:
+            row.result = "failed"
+            row.detail = str(e)
+            row.state = "error"
+            return row
+
+        try:
+            if(repo.head.is_detached):
+                row.result = "skipped"
+                row.detail = "detached HEAD"
+                row.state = "warning"
+                return row
+
+            tracking = repo.active_branch.tracking_branch()
+            if(tracking is None):
+                row.result = "skipped"
+                row.detail = "no upstream"
+                row.state = "warning"
+                return row
+
+            before = repo.head.commit.hexsha
+            repo.git.fetch(tracking.remote_name, tracking.remote_head, "--quiet")
+            repo.git.merge("--ff-only", tracking.name)
+            after = repo.head.commit.hexsha
+            if(before == after):
+                row.result = "up-to-date"
+                row.detail = str(repo.active_branch)
+            else:
+                row.result = "pulled"
+                row.detail = f"{before[:8]} -> {after[:8]}"
+        except Exception as e:
+            row.result = "failed"
+            row.detail = str(e)
+            row.state = "error"
+
+        return row
 
 
 class Config(cicconf.Command):
@@ -168,6 +296,7 @@ class Config(cicconf.Command):
         self.options = dict()
         self.rundir = rundir
         self.cwd = os.getcwd()
+        self.console = Console()
 
         if(filename.startswith("/")):
             pass
@@ -176,9 +305,7 @@ class Config(cicconf.Command):
 
         self.filename = filename
 
-        #- Change to rundir
         os.chdir(self.rundir)
-
 
     def read(self):
 
@@ -189,6 +316,8 @@ class Config(cicconf.Command):
         with open(self.filename) as fi:
             self.config = yaml.safe_load(fi)
 
+        self.children = dict()
+        self.options = dict()
         for k in self.config:
             if(k == "options"):
                 self.options = self.config[k]
@@ -197,12 +326,71 @@ class Config(cicconf.Command):
 
         return True
 
-    def clone(self,useHttps,doOnClone=True):
-        for name,c in self.children.items():
-            c.clone(useHttp=useHttps,doOnClone=doOnClone)
+    def _selected_children(self,regex):
+        matcher = re.compile(regex)
+        return [(name, child) for name, child in self.children.items() if matcher.search(name)]
+
+    def _run_parallel(self, items, fn, jobs, progress_label=None):
+        if(not items):
+            return []
+        max_workers = min(max(1, jobs), len(items))
+        rows = []
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("{task.description}"),
+            BarColumn(),
+            TextColumn("{task.completed}/{task.total}"),
+            TimeElapsedColumn(),
+            console=self.console,
+        ) as progress:
+            task_id = progress.add_task(progress_label or "Working", total=len(items))
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                future_to_name = {executor.submit(fn, item[1]): item[0] for item in items}
+                for future in as_completed(future_to_name):
+                    row = future.result()
+                    rows.append(row)
+                    progress_value = getattr(row, "result", getattr(row, "status", "done"))
+                    progress.update(
+                        task_id,
+                        advance=1,
+                        description=f"{progress_label or 'Working'}: {row.name} {progress_value}",
+                    )
+        rows.sort(key=lambda row: row.name)
+        return rows
+
+    def _render_action_table(self,title,rows):
+        table = Table(title=title)
+        table.add_column("Name",style="cyan",no_wrap=True)
+        table.add_column("Revision",style="magenta")
+        table.add_column("Result",style="green")
+        table.add_column("Detail",style="blue")
+
+        for row in rows:
+            result_style = "green"
+            if(row.state == "warning"):
+                result_style = "yellow"
+            elif(row.state == "error"):
+                result_style = "bold red"
+
+            table.add_row(
+                row.name,
+                row.revision,
+                f"[{result_style}]{row.result}[/{result_style}]",
+                row.detail,
+            )
+
+        self.console.print(table)
+
+    def clone(self,useHttps,doOnClone=True,jobs=4):
+        rows = self._run_parallel(
+            list(self.children.items()),
+            lambda repo: repo.clone_action(useHttp=useHttps, doOnClone=doOnClone),
+            jobs,
+            progress_label="Cloning repositories",
+        )
+        self._render_action_table("cicconf clone", rows)
 
     def newIp(self,name):
-        #- Check for errors
         error = False
         if("project" not in self.options):
             self.error(f"project option not defined in {self.filename}")
@@ -210,8 +398,6 @@ class Config(cicconf.Command):
         if("technology" not in self.options):
             self.error(f"technology option not defined in {self.filename}")
             error = True
-
-
 
         if("template" not in self.options):
             self.error(f"template option not defined in {self.filename}")
@@ -222,28 +408,67 @@ class Config(cicconf.Command):
         if(error):
             return
 
-        #- Run template
         ip = self.options["project"] + "_" + name + "_" + self.options["technology"]
         iptemplate = self.options["template"]["ip"]
         cmd = cicconf.CmdIp(ip.upper(),iptemplate)
         cmd.run()
 
-    def status(self):
-        self.comment("O = Commits behind/ahead branch","yellow")
-        self.comment("M = Modified files","yellow")
-        self.comment("U = Untracked files","yellow")
-        self.comment("%-25s%-15s%-15s" %("Name","Revision","Status"))
-        self.comment("-"*55)
-        for name,c in self.children.items():
-            c.status()
+    def status(self,fast=True):
+        table = Table(title="cicconf status")
+        table.add_column("Name",style="cyan",no_wrap=True)
+        table.add_column("Revision",style="magenta")
+        table.add_column("Current",style="blue")
+        table.add_column("Status",style="green")
 
-    def update(self,regex):
+        rows = self._run_parallel(
+            list(self.children.items()),
+            lambda repo: repo.collect_status(fast=fast),
+            8,
+            progress_label="Collecting status",
+        )
 
-        for name,c in self.children.items():
-            if(re.search(regex,name)):
-                c.update()
-    def pull(self,regex):
+        for row in rows:
+            status_style = "green"
+            if(row.state == "warning"):
+                status_style = "yellow"
+            elif(row.state == "uncloned"):
+                status_style = "red"
+            elif(row.state == "error"):
+                status_style = "bold red"
 
-        for name,c in self.children.items():
-            if(re.search(regex,name)):
-                c.pull()
+            table.add_row(
+                row.name,
+                row.revision,
+                row.current,
+                f"[{status_style}]{row.status}[/{status_style}]",
+            )
+
+        self.console.print(table)
+
+        if(fast):
+            self.console.print("[dim]Fast mode skips ahead/behind counts. Use --no-fast for full git status.[/dim]")
+        else:
+            self.console.print("[dim]O = Commits behind/ahead branch, M = Modified files, U = Untracked files[/dim]")
+
+        if(self.verbose):
+            for row in rows:
+                for detail in row.details:
+                    self.console.print(f"  [yellow]{detail}[/yellow]")
+
+    def update(self,regex,jobs=4):
+        rows = self._run_parallel(
+            self._selected_children(regex),
+            lambda repo: repo.update_action(),
+            jobs,
+            progress_label="Updating repositories",
+        )
+        self._render_action_table("cicconf update", rows)
+
+    def pull(self,regex,jobs=4):
+        rows = self._run_parallel(
+            self._selected_children(regex),
+            lambda repo: repo.pull_action(),
+            jobs,
+            progress_label="Pulling repositories",
+        )
+        self._render_action_table("cicconf pull", rows)
